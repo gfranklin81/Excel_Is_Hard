@@ -1,0 +1,64 @@
+Sub CopySheetsFromSelectedWorkbook()
+    Dim sourceWb As Workbook
+    Dim newWb As Workbook
+    Dim wsNames As Variant
+    Dim wsName As Variant
+    Dim selectedFile As String
+    Dim savePath As String
+    Dim ws As Worksheet
+    Dim c As Range
+    Dim linkFormulaPattern As String
+
+    ' Let user pick the file
+    selectedFile = Application.GetOpenFilename("Excel Files (*.xls*), *.xls*", , "Select the Source Workbook")
+
+    If selectedFile = "False" Then
+        MsgBox "No file selected. Process cancelled.", vbExclamation
+        Exit Sub
+    End If
+
+    ' Open the selected workbook
+    Set sourceWb = Workbooks.Open(Filename:=selectedFile)
+
+    ' Define the sheet names to copy (your actual sheet names)
+    wsNames = Array("BC", "WLP", "UHC")
+
+    ' Create a new workbook to paste sheets into (starts with 1 default sheet)
+    Set newWb = Workbooks.Add(xlWBATWorksheet)
+
+    ' Copy each specified sheet
+    For Each wsName In wsNames
+        On Error Resume Next
+        sourceWb.Sheets(wsName).Copy After:=newWb.Sheets(newWb.Sheets.Count)
+        If Err.Number <> 0 Then
+            MsgBox "Sheet '" & wsName & "' not found in source file.", vbExclamation
+            Err.Clear
+        End If
+        On Error GoTo 0
+    Next wsName
+
+    ' Delete the default empty sheet ONLY if other sheets were added
+    If newWb.Sheets.Count > 1 Then
+        Application.DisplayAlerts = False
+        newWb.Sheets(1).Delete
+        Application.DisplayAlerts = True
+    End If
+
+    ' Break all external links in the new workbook
+    On Error Resume Next
+    ExecuteExcel4Macro "BREAK.LINK(""'" & newWb.Name & "'!R1C1"",""EXTERNAL"")"
+    On Error GoTo 0
+
+    ' Set the save path you want to use
+    savePath = "M:\Fiscal_Budget\Business Sector Team\Greg\Analysis\Due Monthly\2025\MLR Directed Payments\" ' Your folder path
+
+    ' Save the new workbook with date in filename
+    newWb.SaveAs Filename:=savePath & "##. MLR Directed Payments - mmm yyyy.xlsx"
+
+    newWb.Close SaveChanges:=False
+
+    sourceWb.Close SaveChanges:=False
+
+    MsgBox "Sheets copied, links broken, and new workbook saved successfully!", vbInformation
+End Sub
+
